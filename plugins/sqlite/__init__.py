@@ -6,6 +6,8 @@
 # Personal and non-commercial use only, redistribution is prohibited.
 #########################################################################
 
+# changed: added count patch: https://raw.githubusercontent.com/aschwith/smarthome/master/plot_cnt_4develop/sqlite/__init__.py
+
 import logging
 import sqlite3
 import datetime
@@ -304,12 +306,12 @@ class SQL():
     def _series(self, func, start, end='now', count=100, ratio=1, update=False, step=None, sid=None, item=None):
         init = not update
         if sid is None:
-            sid = item + '|' + func + '|' + start + '|' + end
+            sid = item + '|' + func + '|' + start + '|' + end + '|' + str(count)
         istart = self._get_timestamp(start)
         iend = self._get_timestamp(end)
         if step is None:
             if count != 0:
-                step = int((iend - istart) / count)
+                step = int((iend - istart) / int(count))
             else:
                 step = iend - istart
         reply = {'cmd': 'series', 'series': None, 'sid': sid}
