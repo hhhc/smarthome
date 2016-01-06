@@ -1,0 +1,3 @@
+[submodule "plugins/autoblind"]
+	path = plugins/autoblind
+	url = https://github.com/i-am-offline/smarthome.plugin.autoblind.git
