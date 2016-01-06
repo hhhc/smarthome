@@ -23,8 +23,16 @@ import logging
 import imaplib
 import smtplib
 import email
+import os
+import mimetypes
 from email.mime.text import MIMEText
 from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.audio import MIMEAudio
+from email.mime.image import MIMEImage
+from email.message import Message
+from email import encoders
 
 logger = logging.getLogger('')
 
@@ -146,21 +154,57 @@ class SMTP():
         self._username = username
         self._password = password
 
-    def __call__(self, to, sub, msg):
+    def __call__(self, to, sub, content, files=False):
         try:
             smtp = self._connect()
         except Exception as e:
             logger.warning("Could not connect to {0}: {1}".format(self._host, e))
             return
         try:
-            msg = MIMEText(msg, 'plain', 'utf-8')
+            text = (MIMEText(content, 'plain', 'utf-8'))
+            msg = MIMEMultipart()
             msg['Subject'] = Header(sub, 'utf-8')
             msg['From'] = self._from
             msg['Date'] = email.utils.formatdate()
             msg['To'] = to
             msg['Message-ID'] = email.utils.make_msgid('SmartHome.py')
             to = [x.strip() for x in to.split(',')]
+            msg.attach(text)
+            filelist = []
+            if files:
+                if type(files) is str:
+                    filelist.append(files)
+                else:
+                    filelist.extend(files)
+                    
+                for filename in filelist:
+                    ctype, encoding = mimetypes.guess_type(filename)
+                    if ctype is None or encoding is not None:
+                        ctype = 'application/octet-stream'
+                    maintype, subtype = ctype.split('/', 1)
+                    if maintype == 'text':
+                        with open(filename) as fp:
+                            file = MIMEText(fp.read(), _subtype=subtype)
+                    elif maintype == 'image':
+                        with open(filename, 'rb') as fp:
+                            file = MIMEImage(fp.read(), _subtype=subtype)
+                    elif maintype == 'audio':
+                        with open(filename, 'rb') as fp:
+                            file = MIMEAudio(fp.read(), _subtype=subtype)
+                    else:
+                        with open(filename, 'rb') as fp:
+                            file = MIMEBase(maintype, subtype)
+                            file.set_payload(fp.read())
+                        encoders.encode_base64(file)
+
+                    base_filename = os.path.basename(filename)
+
+                    file.add_header('Content-Disposition', 'attachment', filename=base_filename)
+                    msg.attach(file)
+                    
+
             smtp.sendmail(self._from, to, msg.as_string())
+            
         except Exception as e:
             logger.warning("Could not send message {} to {}: {}".format(sub, to, e))
         finally:
